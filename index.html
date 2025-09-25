@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Remove vocals from any song with HSVocalRemover.com - Free online vocal removal tool">
+    <meta name="keywords" content="vocal remover, remove vocals, instrumental maker, karaoke maker, HSVocalRemover">
+    <meta property="og:title" content="HS Vocal Remover - Remove Vocals from Songs">
+    <meta property="og:description" content="Create high-quality instrumental tracks with our advanced vocal removal technology">
+    <meta property="og:url" content="https://hsvocalremover.com">
+    <title>HS Vocal Remover - Remove Vocals from Songs</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <h1>HSVocalRemover.com</h1>
+            <p>Professional Vocal Removal Tool</p>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#" class="active">Home</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#about">About</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <h2>Remove Vocals from Any Song</h2>
+                <p>Create high-quality instrumental tracks with our advanced vocal removal technology</p>
+                <button id="start-button" class="cta-button">Get Started</button>
+            </div>
+        </section>
+
+        <section id="vocal-remover" class="tool-section">
+            <h2>Vocal Remover Tool</h2>
+            <div class="upload-container">
+                <div class="upload-area" id="drop-area">
+                    <i class="fas fa-music icon"></i>
+                    <p>Drag & drop your audio file here</p>
+                    <p>or</p>
+                    <label for="file-input" class="upload-button">Choose File</label>
+                    <input type="file" id="file-input" accept="audio/*" hidden>
+                    <p class="file-info" id="file-info">No file selected</p>
+                </div>
+            </div>
+            
+            <div class="controls hidden" id="audio-controls">
+                <div class="audio-player">
+                    <audio id="audio-player" controls></audio>
+                </div>
+                <div class="processing-options">
+                    <button id="remove-vocals" class="process-button">Remove Vocals</button>
+                    <button id="download-instrumental" class="download-button" disabled>Download Instrumental</button>
+                </div>
+                <div class="processing-status">
+                    <div id="progress-container" class="hidden">
+                        <div id="progress-bar"></div>
+                    </div>
+                    <p id="status-message"></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="how-it-works" class="info-section">
+            <h2>How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-icon"><i class="fas fa-upload"></i></div>
+                    <h3>Upload</h3>
+                    <p>Upload any audio file (MP3, WAV, etc.)</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon"><i class="fas fa-cogs"></i></div>
+                    <h3>Process</h3>
+                    <p>Our algorithm separates vocals from instrumentals</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon"><i class="fas fa-download"></i></div>
+                    <h3>Download</h3>
+                    <p>Get your high-quality instrumental track</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="about" class="info-section">
+            <h2>About Our Technology</h2>
+            <p>HSVocalRemover.com uses advanced audio processing algorithms to separate vocals from instrumental tracks. Our technology analyzes the stereo field and frequency spectrum to identify and remove vocal content while preserving the quality of the instrumental background.</p>
+            <p>This tool is perfect for karaoke, music production, remixing, and practice tracks for musicians.</p>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <h3>HSVocalRemover.com</h3>
+                <p>Professional Vocal Removal Tool</p>
+            </div>
+            <div class="footer-links">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="#">Home</a></li>
+                    <li><a href="#how-it-works">How It Works</a></li>
+                    <li><a href="#about">About</a></li>
+                </ul>
+            </div>
+            <div class="footer-contact">
+                <h4>Contact</h4>
+                <p>Email: info@hsvocalremover.com</p>
+            </div>
+        </div>
+        <div class="copyright">
+            <p>&copy; 2023 HSVocalRemover.com. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
