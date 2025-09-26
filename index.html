@@ -22,6 +22,7 @@
             <ul>
                 <li><a href="#" class="active">Home</a></li>
                 <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#model-training">Train Model</a></li>
                 <li><a href="#about">About</a></li>
             </ul>
         </nav>
@@ -38,6 +39,17 @@
 
         <section id="vocal-remover" class="tool-section">
             <h2>Vocal Remover Tool</h2>
+            
+            <!-- Model Selection -->
+            <div class="model-selection">
+                <label for="model-select">Choose Model:</label>
+                <select id="model-select">
+                    <option value="default">Default Algorithm</option>
+                    <option value="trained" disabled>Custom Trained Model (Train one first)</option>
+                </select>
+                <button id="train-model-btn" class="train-button">Train New Model</button>
+            </div>
+            
             <div class="upload-container">
                 <div class="upload-area" id="drop-area">
                     <i class="fas fa-music icon"></i>
@@ -62,6 +74,72 @@
                         <div id="progress-bar"></div>
                     </div>
                     <p id="status-message"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Model Training Section -->
+        <section id="model-training" class="tool-section hidden">
+            <h2>Train Custom Vocal Removal Model</h2>
+            <p class="training-description">
+                Upload pairs of original songs and their instrumental versions to train a custom AI model 
+                that learns to better separate vocals from your specific type of music.
+            </p>
+            
+            <div class="training-data-upload">
+                <h3>Training Data</h3>
+                <div class="training-pair" id="training-pairs-container">
+                    <div class="training-pair-item">
+                        <div class="pair-header">
+                            <h4>Training Pair 1</h4>
+                            <button class="remove-pair-btn" onclick="removePair(this)">×</button>
+                        </div>
+                        <div class="file-pair">
+                            <div class="file-upload-section">
+                                <label>Original Song (with vocals):</label>
+                                <input type="file" class="original-file" accept="audio/*">
+                                <span class="file-name">No file selected</span>
+                            </div>
+                            <div class="file-upload-section">
+                                <label>Instrumental Version:</label>
+                                <input type="file" class="instrumental-file" accept="audio/*">
+                                <span class="file-name">No file selected</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="add-training-pair" class="add-pair-button">+ Add Another Pair</button>
+            </div>
+            
+            <div class="training-controls">
+                <div class="training-settings">
+                    <label for="model-name">Model Name:</label>
+                    <input type="text" id="model-name" placeholder="My Custom Model" value="Custom Model">
+                    
+                    <label for="training-epochs">Training Epochs:</label>
+                    <input type="number" id="training-epochs" min="10" max="200" value="50">
+                </div>
+                
+                <button id="start-training" class="train-button" disabled>Start Training</button>
+                <button id="cancel-training" class="cancel-button hidden">Cancel Training</button>
+            </div>
+            
+            <div class="training-progress hidden" id="training-progress">
+                <h3>Training Progress</h3>
+                <div class="progress-info">
+                    <div class="progress-bar-container">
+                        <div id="training-progress-bar" class="progress-bar"></div>
+                    </div>
+                    <div class="training-stats">
+                        <p>Epoch: <span id="current-epoch">0</span> / <span id="total-epochs">50</span></p>
+                        <p>Loss: <span id="current-loss">-</span></p>
+                        <p>Estimated Time Remaining: <span id="time-remaining">-</span></p>
+                    </div>
+                </div>
+                <div class="training-log">
+                    <h4>Training Log</h4>
+                    <div id="training-log-content"></div>
                 </div>
             </div>
         </section>
@@ -118,6 +196,7 @@
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
