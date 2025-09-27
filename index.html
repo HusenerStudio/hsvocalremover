@@ -26,6 +26,32 @@
                 <li><a href="#about">About</a></li>
             </ul>
         </nav>
+        <div class="header-actions">
+            <div id="user-info" class="user-info">
+                <button id="user-menu-toggle" class="user-menu-toggle">
+                    <i class="fas fa-user"></i>
+                    <span id="user-name">Guest</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div id="user-dropdown" class="user-dropdown">
+                    <a href="history.html" class="dropdown-item">
+                        <i class="fas fa-history"></i>
+                        My History
+                    </a>
+                    <a href="login.html" id="login-link" class="dropdown-item">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Login
+                    </a>
+                    <a href="#" id="logout-link" class="dropdown-item hidden">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </a>
+                </div>
+            </div>
+            <button id="theme-toggle" class="theme-toggle-button">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
     </header>
 
     <main>
@@ -86,30 +112,143 @@
                 that learns to better separate vocals from your specific type of music.
             </p>
             
+            <div class="model-upload-section">
+                <h3>Upload or Load Pre-trained Model</h3>
+                <p class="training-description">Load a pre-trained model from various sources or upload local files. Choose from local files, GitHub repositories, or Hugging Face models.</p>
+                
+                <!-- Tab Navigation -->
+                <div class="model-tabs">
+                    <button class="tab-button active" data-tab="local">
+                        <i class="fas fa-upload"></i>
+                        Local Files
+                    </button>
+                    <button class="tab-button" data-tab="github">
+                        <i class="fab fa-github"></i>
+                        GitHub
+                    </button>
+                    <button class="tab-button" data-tab="huggingface">
+                        <i class="fas fa-robot"></i>
+                        Hugging Face
+                    </button>
+                </div>
+
+                <!-- Local Files Tab -->
+                <div class="tab-content active" id="local-tab">
+                    <div class="model-upload-controls">
+                        <div class="file-upload-section">
+                            <label for="model-url-input">Model URL:</label>
+                            <input type="text" id="model-url-input" placeholder="e.g., https://example.com/model/model.json">
+                        </div>
+                        <div class="file-upload-section">
+                            <label for="model-file-input">Upload Model File (model.json):</label>
+                            <input type="file" id="model-file-input" accept=".json">
+                            <span class="file-name" id="model-file-name">No file chosen</span>
+                        </div>
+                        <div class="file-upload-section">
+                            <label for="model-weights-input">Upload Model Weights (weights.bin):</label>
+                            <input type="file" id="model-weights-input" accept=".bin">
+                            <span class="file-name" id="model-weights-name">No file chosen</span>
+                        </div>
+                        <div class="file-upload-section">
+                            <label for="uploaded-model-name">Model Name:</label>
+                            <input type="text" id="uploaded-model-name" placeholder="My Custom Model">
+                        </div>
+                        <button id="load-model-btn" class="train-button">Load Model</button>
+                    </div>
+                </div>
+
+                <!-- GitHub Tab -->
+                <div class="tab-content" id="github-tab">
+                    <div class="model-upload-controls">
+                        <div class="file-upload-section">
+                            <label for="github-repo-input">GitHub Repository URL:</label>
+                            <input type="text" id="github-repo-input" placeholder="e.g., username/vocal-remover-model">
+                            <small class="input-help">Enter the repository in format: username/repository-name</small>
+                        </div>
+                        <div class="file-upload-section">
+                            <label for="github-path-input">Model Path (optional):</label>
+                            <input type="text" id="github-path-input" placeholder="e.g., models/model.json">
+                            <small class="input-help">Path to model file within the repository</small>
+                        </div>
+                        <div class="file-upload-section">
+                            <label for="github-branch-input">Branch (optional):</label>
+                            <input type="text" id="github-branch-input" placeholder="main" value="main">
+                        </div>
+                        <div class="file-upload-section">
+                            <label for="github-token-input">GitHub Token (optional):</label>
+                            <input type="password" id="github-token-input" placeholder="ghp_xxxxxxxxxxxx">
+                            <small class="input-help">Required for private repositories</small>
+                        </div>
+                        <div class="file-upload-section">
+                            <label for="github-model-name">Model Name:</label>
+                            <input type="text" id="github-model-name" placeholder="GitHub Model">
+                        </div>
+                        <button id="load-github-model-btn" class="train-button">
+                            <i class="fas fa-download"></i>
+                            Load from GitHub
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Hugging Face Tab -->
+                <div class="tab-content" id="huggingface-tab">
+                    <div class="model-upload-controls">
+                        <div class="file-upload-section">
+                            <label for="hf-model-input">Hugging Face Model ID:</label>
+                            <input type="text" id="hf-model-input" placeholder="e.g., facebook/demucs-v4-htdemucs">
+                            <small class="input-help">Enter the model ID from Hugging Face Hub</small>
+                        </div>
+                        <div class="file-upload-section">
+                            <label for="hf-file-input">Model File (optional):</label>
+                            <input type="text" id="hf-file-input" placeholder="e.g., model.json">
+                            <small class="input-help">Specific file to download (defaults to model.json)</small>
+                        </div>
+                        <div class="file-upload-section">
+                            <label for="hf-revision-input">Revision (optional):</label>
+                            <input type="text" id="hf-revision-input" placeholder="main">
+                            <small class="input-help">Git revision (branch, tag, or commit)</small>
+                        </div>
+                        <div class="file-upload-section">
+                            <label for="hf-token-input">Hugging Face Token (optional):</label>
+                            <input type="password" id="hf-token-input" placeholder="hf_xxxxxxxxxxxx">
+                            <small class="input-help">Required for private models or gated models</small>
+                        </div>
+                        <div class="file-upload-section">
+                            <label for="hf-model-name">Model Name:</label>
+                            <input type="text" id="hf-model-name" placeholder="Hugging Face Model">
+                        </div>
+                        <button id="load-hf-model-btn" class="train-button">
+                            <i class="fas fa-download"></i>
+                            Load from Hugging Face
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="training-data-upload">
-                <h3>Training Data</h3>
-                <div class="training-pair" id="training-pairs-container">
-                    <div class="training-pair-item">
+                <h3>Upload Training Data</h3>
+                <p class="training-description">Upload pairs of original audio and their instrumental versions to train your custom vocal remover model. The more diverse and high-quality data you provide, the better your model will perform.</p>
+                <div id="training-pairs-container">
+                    <div class="training-pair-item" data-pair-id="1">
                         <div class="pair-header">
-                            <h4>Training Pair 1</h4>
-                            <button class="remove-pair-btn" onclick="removePair(this)">×</button>
+                            <h4>Training Pair #1</h4>
+                            <button class="remove-pair-btn" data-pair-id="1">X</button>
                         </div>
                         <div class="file-pair">
                             <div class="file-upload-section">
-                                <label>Original Song (with vocals):</label>
-                                <input type="file" class="original-file" accept="audio/*">
-                                <span class="file-name">No file selected</span>
+                                <label for="original-audio-1">Original Audio:</label>
+                                <input type="file" id="original-audio-1" accept="audio/*">
+                                <span class="file-name" id="original-audio-name-1">No file chosen</span>
                             </div>
                             <div class="file-upload-section">
-                                <label>Instrumental Version:</label>
-                                <input type="file" class="instrumental-file" accept="audio/*">
-                                <span class="file-name">No file selected</span>
+                                <label for="instrumental-audio-1">Instrumental Audio:</label>
+                                <input type="file" id="instrumental-audio-1" accept="audio/*">
+                                <span class="file-name" id="instrumental-audio-name-1">No file chosen</span>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                <button id="add-training-pair" class="add-pair-button">+ Add Another Pair</button>
+                <button id="add-training-pair-btn" class="add-pair-button">Add Another Training Pair</button>
             </div>
             
             <div class="training-controls">
@@ -197,6 +336,7 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="auth.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

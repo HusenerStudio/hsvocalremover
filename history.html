@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History - HS Vocal Remover</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <h1><a href="index.html">HSVocalRemover.com</a></h1>
+            <p>Professional Vocal Removal Tool</p>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="index.html#how-it-works">How It Works</a></li>
+                <li><a href="index.html#model-training">Train Model</a></li>
+                <li><a href="history.html" class="active">History</a></li>
+            </ul>
+        </nav>
+        <div class="user-menu">
+            <div class="user-info" id="user-info">
+                <i class="fas fa-user-circle"></i>
+                <span id="user-name">Guest</span>
+                <button id="user-menu-toggle" class="user-menu-button">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+            <div class="user-dropdown" id="user-dropdown">
+                <a href="login.html" id="login-link">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Login
+                </a>
+                <a href="#" id="logout-link" class="hidden">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
+        </div>
+        <button id="theme-toggle" class="theme-toggle-button">
+            <i class="fas fa-moon"></i>
+        </button>
+    </header>
+
+    <main class="history-main">
+        <section class="history-header">
+            <h1>Your Vocal Removal History</h1>
+            <p class="history-description">Access all your processed audio files and separated stems in one place.</p>
+            
+            <div class="history-controls">
+                <div class="search-container">
+                    <input type="text" id="history-search" placeholder="Search your files...">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="filter-container">
+                    <select id="history-filter">
+                        <option value="all">All Files</option>
+                        <option value="recent">Recent (7 days)</option>
+                        <option value="month">This Month</option>
+                        <option value="vocals">Vocal Tracks</option>
+                        <option value="instrumentals">Instrumentals</option>
+                    </select>
+                </div>
+                <button id="clear-history" class="clear-button">
+                    <i class="fas fa-trash"></i>
+                    Clear All
+                </button>
+            </div>
+        </section>
+
+        <section class="history-content">
+            <div class="history-stats">
+                <div class="stat-card">
+                    <i class="fas fa-music"></i>
+                    <div class="stat-info">
+                        <span class="stat-number" id="total-files">0</span>
+                        <span class="stat-label">Total Files</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-microphone"></i>
+                    <div class="stat-info">
+                        <span class="stat-number" id="vocal-tracks">0</span>
+                        <span class="stat-label">Vocal Tracks</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-guitar"></i>
+                    <div class="stat-info">
+                        <span class="stat-number" id="instrumental-tracks">0</span>
+                        <span class="stat-label">Instrumentals</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-hdd"></i>
+                    <div class="stat-info">
+                        <span class="stat-number" id="storage-used">0 MB</span>
+                        <span class="stat-label">Storage Used</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="history-list" id="history-list">
+                <div class="empty-history" id="empty-history">
+                    <i class="fas fa-music"></i>
+                    <h3>No History Yet</h3>
+                    <p>Start by <a href="index.html">processing some audio files</a> to see them here.</p>
+                </div>
+            </div>
+
+            <div class="history-pagination" id="history-pagination">
+                <button class="pagination-btn" id="prev-page" disabled>
+                    <i class="fas fa-chevron-left"></i>
+                    Previous
+                </button>
+                <span class="pagination-info" id="pagination-info">Page 1 of 1</span>
+                <button class="pagination-btn" id="next-page" disabled>
+                    Next
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>HSVocalRemover.com</h3>
+                <p>Professional vocal removal and audio separation technology.</p>
+            </div>
+            <div class="footer-section">
+                <h4>Features</h4>
+                <ul>
+                    <li><a href="index.html">Vocal Remover</a></li>
+                    <li><a href="index.html#model-training">Train Models</a></li>
+                    <li><a href="history.html">History</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Account</h4>
+                <ul>
+                    <li><a href="login.html">Login</a></li>
+                    <li><a href="#" class="terms-link">Terms</a></li>
+                    <li><a href="#" class="privacy-link">Privacy</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 HSVocalRemover.com. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="auth.js"></script>
+    <script src="history.js"></script>
+</body>
+</html>

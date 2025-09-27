@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelSelect = document.getElementById('model-select');
     const trainModelBtn = document.getElementById('train-model-btn');
     const modelTrainingSection = document.getElementById('model-training');
-    const addTrainingPairBtn = document.getElementById('add-training-pair');
+    const addTrainingPairBtn = document.getElementById('add-training-pair-btn');
     const startTrainingBtn = document.getElementById('start-training');
     const cancelTrainingBtn = document.getElementById('cancel-training');
     const trainingProgress = document.getElementById('training-progress');
@@ -27,11 +27,321 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeRemainingSpan = document.getElementById('time-remaining');
     const trainingLogContent = document.getElementById('training-log-content');
     
+    // Tab Elements
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    // Local Files Tab Elements
+    const modelUrlInput = document.getElementById('model-url-input');
+    const modelFileInput = document.getElementById('model-file-input');
+    const modelWeightsInput = document.getElementById('model-weights-input');
+    const uploadedModelNameInput = document.getElementById('uploaded-model-name');
+    const loadModelBtn = document.getElementById('load-model-btn');
+    
+    // GitHub Tab Elements
+    const githubRepoInput = document.getElementById('github-repo-input');
+    const githubBranchInput = document.getElementById('github-branch-input');
+    const githubTokenInput = document.getElementById('github-token-input');
+    const githubPathInput = document.getElementById('github-path-input');
+    const githubModelNameInput = document.getElementById('github-model-name');
+    const loadGithubModelBtn = document.getElementById('load-github-model-btn');
+    
+    // Hugging Face Tab Elements
+    const hfModelIdInput = document.getElementById('hf-model-id-input');
+    const hfRevisionInput = document.getElementById('hf-revision-input');
+    const hfTokenInput = document.getElementById('hf-token-input');
+    const hfFilenameInput = document.getElementById('hf-filename-input');
+    const hfModelNameInput = document.getElementById('hf-model-name');
+    const loadHfModelBtn = document.getElementById('load-hf-model-btn');
+
+    // Tab Switching Functionality
+    function initializeTabs() {
+        tabButtons.forEach((button, index) => {
+            button.addEventListener('click', () => {
+                // Remove active class from all tabs and contents
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                button.classList.add('active');
+                tabContents[index].classList.add('active');
+            });
+        });
+        
+        // Set first tab as active by default
+        if (tabButtons.length > 0) {
+            tabButtons[0].classList.add('active');
+            tabContents[0].classList.add('active');
+        }
+    }
+
+    // GitHub Model Loading
+    async function loadModelFromGitHub() {
+        const repo = githubRepoInput.value.trim();
+        const branch = githubBranchInput.value.trim() || 'main';
+        const token = githubTokenInput.value.trim();
+        const path = githubPathInput.value.trim();
+        const modelName = githubModelNameInput.value.trim() || 'GitHub Model';
+        
+        if (!repo || !path) {
+            showStatusMessage('github-status', 'Please enter repository URL and model path', 'error');
+            return;
+        }
+        
+        try {
+            showStatusMessage('github-status', 'Downloading model from GitHub...', 'info');
+            setButtonLoading(loadGithubModelBtn, true);
+            
+            // Extract owner and repo name from URL
+            const repoMatch = repo.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+            if (!repoMatch) {
+                throw new Error('Invalid GitHub repository URL');
+            }
+            
+            const [, owner, repoName] = repoMatch;
+            
+            // Construct GitHub API URL
+            const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/${path}?ref=${branch}`;
+            
+            const headers = {
+                'Accept': 'application/vnd.github.v3+json'
+            };
+            
+            if (token) {
+                headers['Authorization'] = `token ${token}`;
+            }
+            
+            const response = await fetch(apiUrl, { headers });
+            
+            if (!response.ok) {
+                throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.type !== 'file') {
+                throw new Error('Path does not point to a file');
+            }
+            
+            // Download the file content
+            const fileResponse = await fetch(data.download_url);
+            if (!fileResponse.ok) {
+                throw new Error('Failed to download model file');
+            }
+            
+            // Load the model using TensorFlow.js
+            const model = await tf.loadLayersModel(data.download_url);
+            
+            // Add the loaded model to our model management system
+            trainedModel = model;
+            saveModelToLocalStorage(modelName, model);
+            
+            showStatusMessage('github-status', `Successfully loaded model: ${modelName}`, 'success');
+            updateModelSelect();
+            
+        } catch (error) {
+            showStatusMessage('github-status', `Failed to load model: ${error.message}`, 'error');
+            console.error('GitHub model loading error:', error);
+        } finally {
+            setButtonLoading(loadGithubModelBtn, false);
+        }
+    }
+
+    // Hugging Face Model Loading
+    async function loadModelFromHuggingFace() {
+        const modelId = hfModelIdInput.value.trim();
+        const revision = hfRevisionInput.value.trim() || 'main';
+        const token = hfTokenInput.value.trim();
+        const filename = hfFilenameInput.value.trim() || 'model.json';
+        const modelName = hfModelNameInput.value.trim() || 'Hugging Face Model';
+        
+        if (!modelId) {
+            showStatusMessage('hf-status', 'Please enter a model ID', 'error');
+            return;
+        }
+        
+        try {
+            showStatusMessage('hf-status', 'Downloading model from Hugging Face...', 'info');
+            setButtonLoading(loadHfModelBtn, true);
+            
+            // Construct Hugging Face model URL
+            const modelUrl = `https://huggingface.co/${modelId}/resolve/${revision}/${filename}`;
+            
+            const headers = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            // Test if the model file exists
+            const testResponse = await fetch(modelUrl, { 
+                method: 'HEAD',
+                headers 
+            });
+            
+            if (!testResponse.ok) {
+                throw new Error(`Model file not found: ${testResponse.status} ${testResponse.statusText}`);
+            }
+            
+            // Load the model using TensorFlow.js
+            const model = await tf.loadLayersModel(modelUrl);
+            
+            // Add the loaded model to our model management system
+            trainedModel = model;
+            saveModelToLocalStorage(modelName, model);
+            
+            showStatusMessage('hf-status', `Successfully loaded model: ${modelName}`, 'success');
+            updateModelSelect();
+            
+        } catch (error) {
+            showStatusMessage('hf-status', `Failed to load model: ${error.message}`, 'error');
+            console.error('Hugging Face model loading error:', error);
+        } finally {
+            setButtonLoading(loadHfModelBtn, false);
+        }
+    }
+
+    // Utility Functions
+    function showStatusMessage(containerId, message, type) {
+        const container = document.getElementById(containerId);
+        if (!container) {
+            // Create status message container if it doesn't exist
+            const statusDiv = document.createElement('div');
+            statusDiv.id = containerId;
+            statusDiv.className = 'status-message';
+            
+            // Find the appropriate parent to append to
+            if (containerId.includes('github')) {
+                document.getElementById('github-tab').appendChild(statusDiv);
+            } else if (containerId.includes('hf')) {
+                document.getElementById('huggingface-tab').appendChild(statusDiv);
+            } else {
+                document.getElementById('local-files-tab').appendChild(statusDiv);
+            }
+        }
+        
+        const statusElement = document.getElementById(containerId);
+        statusElement.textContent = message;
+        statusElement.className = `status-message ${type}`;
+        statusElement.style.display = 'block';
+        
+        // Auto-hide success messages after 5 seconds
+        if (type === 'success') {
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 5000);
+        }
+    }
+
+    function setButtonLoading(button, isLoading) {
+        if (isLoading) {
+            button.classList.add('loading');
+            button.disabled = true;
+        } else {
+            button.classList.remove('loading');
+            button.disabled = false;
+        }
+    }
+
+    // Initialize tabs
+    initializeTabs();
+
+    // Event listener for Train Model button
+    trainModelBtn.addEventListener('click', () => {
+        modelTrainingSection.classList.remove('hidden');
+        modelTrainingSection.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Event Listeners for Tab Actions
+    if (loadGithubModelBtn) {
+        loadGithubModelBtn.addEventListener('click', loadModelFromGitHub);
+    }
+
+    if (loadHfModelBtn) {
+        loadHfModelBtn.addEventListener('click', loadModelFromHuggingFace);
+    }
+
+    // Placeholder for model management functions (will be fully implemented later)
+    function saveModelToLocalStorage(modelName, model) {
+        console.log(`Saving model ${modelName} to local storage`);
+        // Actual implementation will go here
+        const modelJson = model.toJSON();
+        localStorage.setItem(`tfjs-model-${modelName}-json`, JSON.stringify(modelJson));
+        // For weights, we might need to save them separately or rely on TF.js to handle it
+        // For now, we'll just save the model JSON and assume weights are handled by TF.js during loading
+        updateModelSelect();
+    }
+
+    function updateModelSelect() {
+        console.log('Updating model select dropdown');
+        // Actual implementation will go here
+        const modelSelect = document.getElementById('model-select');
+        // Clear existing options, except the default ones
+        modelSelect.innerHTML = `
+            <option value="default">Default Vocal Remover</option>
+            <option value="trained" disabled>Custom Trained Model</option>
+        `;
+
+        // Add models from local storage
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith('tfjs-model-') && key.endsWith('-json')) {
+                const modelName = key.replace('tfjs-model-', '').replace('-json', '');
+                const option = document.createElement('option');
+                option.value = modelName;
+                option.textContent = modelName;
+                modelSelect.appendChild(option);
+            }
+        }
+
+        // If a trained model exists, enable and update its option
+        if (localStorage.getItem('hasTrainedModel') === 'true') {
+            const trainedOption = modelSelect.querySelector('option[value="trained"]');
+            if (trainedOption) {
+                trainedOption.disabled = false;
+                trainedOption.textContent = localStorage.getItem('modelName') || 'Custom Trained Model';
+            }
+        }
+    }
+
+    // Load model from URL (Local Files Tab)
+    if (loadModelBtn) {
+        loadModelBtn.addEventListener('click', async () => {
+            const modelUrl = modelUrlInput.value.trim();
+            const modelName = uploadedModelNameInput.value.trim() || 'Imported Model';
+            
+            if (!modelUrl) {
+                showStatusMessage('local-status', 'Please enter a valid model URL', 'error');
+                return;
+            }
+            
+            try {
+                showStatusMessage('local-status', `Loading model from URL: ${modelUrl}`, 'info');
+                setButtonLoading(loadModelBtn, true);
+                
+                // Load the model using TensorFlow.js
+                const model = await tf.loadLayersModel(modelUrl);
+                
+                // Add the loaded model to our model management system
+                trainedModel = model;
+                saveModelToLocalStorage(modelName, model);
+                
+                showStatusMessage('local-status', `Successfully loaded model: ${modelName}`, 'success');
+                updateModelSelect();
+            } catch (error) {
+                showStatusMessage('local-status', `Failed to load model: ${error.message}`, 'error');
+                console.error('Model loading error:', error);
+            } finally {
+                setButtonLoading(loadModelBtn, false);
+            }
+        });
+    }
+
     // Audio Context and nodes
     let audioContext;
     let sourceNode;
     let audioBuffer;
     let processedBuffer;
+    let currentFileName = null;
     
     // AI Model variables
     let trainedModel = null;
@@ -87,8 +397,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleFiles(files) {
         const file = files[0];
         if (file.type.startsWith('audio/')) {
+            currentFileName = file.name;
             fileInfo.textContent = `Selected file: ${file.name}`;
             loadAudioFile(file);
+            
+            // Save upload to history if user is logged in
+            if (window.authSystem && window.authSystem.isLoggedIn()) {
+                const historyItem = {
+                    type: 'upload',
+                    fileName: file.name,
+                    status: 'completed',
+                    description: `Uploaded audio file: ${file.name}`,
+                    fileSize: file.size
+                };
+                window.authSystem.saveToHistory(historyItem);
+            }
         } else {
             fileInfo.textContent = 'Please select an audio file.';
         }
@@ -218,12 +541,38 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update audio player with processed audio
         audioPlayer.src = url;
         
+        // Save to history if user is logged in
+        if (window.authSystem && window.authSystem.isLoggedIn() && currentFileName) {
+            const historyItem = {
+                type: 'separation',
+                fileName: currentFileName,
+                status: 'completed',
+                description: 'Vocal separation completed successfully',
+                playUrl: url,
+                downloadUrl: url,
+                modelName: modelSelect.options[modelSelect.selectedIndex].text
+            };
+            window.authSystem.saveToHistory(historyItem);
+        }
+        
         // Set up download button
         downloadButton.addEventListener('click', () => {
             const a = document.createElement('a');
             a.href = url;
             a.download = 'instrumental.wav';
             a.click();
+            
+            // Save download to history if user is logged in
+            if (window.authSystem && window.authSystem.isLoggedIn() && currentFileName) {
+                const historyItem = {
+                    type: 'download',
+                    fileName: 'instrumental.wav',
+                    status: 'completed',
+                    description: `Downloaded instrumental version of ${currentFileName}`,
+                    downloadUrl: url
+                };
+                window.authSystem.saveToHistory(historyItem);
+            }
         });
     }
     
@@ -290,463 +639,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ===== AI MODEL TRAINING FUNCTIONALITY =====
-    
-    // Show/hide training section
-    trainModelBtn.addEventListener('click', () => {
-        modelTrainingSection.classList.toggle('hidden');
-        if (!modelTrainingSection.classList.contains('hidden')) {
-            modelTrainingSection.scrollIntoView({ behavior: 'smooth' });
-        }
-    });
-    
-    // Add training pair functionality
-    let pairCounter = 1;
-    addTrainingPairBtn.addEventListener('click', () => {
-        pairCounter++;
-        const pairContainer = document.getElementById('training-pairs-container');
-        const newPair = createTrainingPairElement(pairCounter);
-        pairContainer.appendChild(newPair);
-        updateTrainingButtonState();
-    });
-    
-    function createTrainingPairElement(pairNumber) {
-        const pairDiv = document.createElement('div');
-        pairDiv.className = 'training-pair-item';
-        pairDiv.innerHTML = `
-            <div class="pair-header">
-                <h4>Training Pair ${pairNumber}</h4>
-                <button class="remove-pair-btn" onclick="removePair(this)">×</button>
-            </div>
-            <div class="file-pair">
-                <div class="file-upload-section">
-                    <label>Original Song (with vocals):</label>
-                    <input type="file" class="original-file" accept="audio/*">
-                    <span class="file-name">No file selected</span>
-                </div>
-                <div class="file-upload-section">
-                    <label>Instrumental Version:</label>
-                    <input type="file" class="instrumental-file" accept="audio/*">
-                    <span class="file-name">No file selected</span>
-                </div>
-            </div>
-        `;
-        
-        // Add event listeners for file inputs
-        const originalInput = pairDiv.querySelector('.original-file');
-        const instrumentalInput = pairDiv.querySelector('.instrumental-file');
-        
-        originalInput.addEventListener('change', (e) => {
-            const fileName = e.target.files[0]?.name || 'No file selected';
-            pairDiv.querySelector('.file-upload-section:first-child .file-name').textContent = fileName;
-            updateTrainingButtonState();
-        });
-        
-        instrumentalInput.addEventListener('change', (e) => {
-            const fileName = e.target.files[0]?.name || 'No file selected';
-            pairDiv.querySelector('.file-upload-section:last-child .file-name').textContent = fileName;
-            updateTrainingButtonState();
-        });
-        
-        return pairDiv;
-    }
-    
-    // Remove training pair
-    window.removePair = function(button) {
-        const pairItem = button.closest('.training-pair-item');
-        if (document.querySelectorAll('.training-pair-item').length > 1) {
-            pairItem.remove();
-            updateTrainingButtonState();
-        }
-    };
-    
-    // Update training button state based on uploaded files
-    function updateTrainingButtonState() {
-        const pairs = document.querySelectorAll('.training-pair-item');
-        let validPairs = 0;
-        
-        pairs.forEach(pair => {
-            const originalFile = pair.querySelector('.original-file').files[0];
-            const instrumentalFile = pair.querySelector('.instrumental-file').files[0];
-            if (originalFile && instrumentalFile) {
-                validPairs++;
-            }
-        });
-        
-        startTrainingBtn.disabled = validPairs === 0;
-    }
-    
-    // Add event listeners to initial training pair
-    document.addEventListener('DOMContentLoaded', () => {
-        const initialPair = document.querySelector('.training-pair-item');
-        if (initialPair) {
-            const originalInput = initialPair.querySelector('.original-file');
-            const instrumentalInput = initialPair.querySelector('.instrumental-file');
-            
-            originalInput.addEventListener('change', (e) => {
-                const fileName = e.target.files[0]?.name || 'No file selected';
-                initialPair.querySelector('.file-upload-section:first-child .file-name').textContent = fileName;
-                updateTrainingButtonState();
-            });
-            
-            instrumentalInput.addEventListener('change', (e) => {
-                const fileName = e.target.files[0]?.name || 'No file selected';
-                initialPair.querySelector('.file-upload-section:last-child .file-name').textContent = fileName;
-                updateTrainingButtonState();
-            });
-        }
-    });
-    
-    // Start training process
-    startTrainingBtn.addEventListener('click', async () => {
-        if (isTraining) return;
-        
-        try {
-            await startModelTraining();
-        } catch (error) {
-            console.error('Training error:', error);
-            addTrainingLog('Error: ' + error.message, 'error');
-        }
-    });
-    
-    // Cancel training
-    cancelTrainingBtn.addEventListener('click', () => {
-        if (isTraining) {
-            isTraining = false;
-            addTrainingLog('Training cancelled by user', 'warning');
-            resetTrainingUI();
-        }
-    });
-    
-    async function startModelTraining() {
-        isTraining = true;
-        trainingStartTime = Date.now();
-        
-        // Show training progress
-        trainingProgress.classList.remove('hidden');
-        startTrainingBtn.disabled = true;
-        cancelTrainingBtn.classList.remove('hidden');
-        
-        // Clear previous logs
-        trainingLogContent.innerHTML = '';
-        addTrainingLog('Initializing training process...', 'info');
-        
-        // Collect training data
-        const pairs = document.querySelectorAll('.training-pair-item');
-        const trainingPairs = [];
-        
-        addTrainingLog(`Found ${pairs.length} training pairs`, 'info');
-        
-        // Process each training pair
-        for (let i = 0; i < pairs.length; i++) {
-            if (!isTraining) break;
-            
-            const pair = pairs[i];
-            const originalFile = pair.querySelector('.original-file').files[0];
-            const instrumentalFile = pair.querySelector('.instrumental-file').files[0];
-            
-            if (originalFile && instrumentalFile) {
-                addTrainingLog(`Processing training pair ${i + 1}...`, 'info');
-                
-                try {
-                    const originalBuffer = await loadAudioFileForTraining(originalFile);
-                    const instrumentalBuffer = await loadAudioFileForTraining(instrumentalFile);
-                    
-                    trainingPairs.push({
-                        original: originalBuffer,
-                        instrumental: instrumentalBuffer
-                    });
-                    
-                    addTrainingLog(`Training pair ${i + 1} processed successfully`, 'success');
-                } catch (error) {
-                    addTrainingLog(`Error processing pair ${i + 1}: ${error.message}`, 'error');
-                }
-            }
-        }
-        
-        if (trainingPairs.length === 0) {
-            addTrainingLog('No valid training pairs found', 'error');
-            resetTrainingUI();
-            return;
-        }
-        
-        // Create and train the model
-        addTrainingLog('Creating neural network model...', 'info');
-        const model = await createVocalRemovalModel();
-        
-        addTrainingLog('Starting training process...', 'info');
-        await trainModel(model, trainingPairs);
-        
-        if (isTraining) {
-            // Save the trained model
-            trainedModel = model;
-            localStorage.setItem('hasTrainedModel', 'true');
-            localStorage.setItem('modelName', document.getElementById('model-name').value);
-            
-            // Enable the trained model option
-            const trainedOption = modelSelect.querySelector('option[value="trained"]');
-            trainedOption.disabled = false;
-            trainedOption.textContent = `${document.getElementById('model-name').value}`;
-            
-            addTrainingLog('Training completed successfully!', 'success');
-            addTrainingLog('Model saved and ready to use', 'success');
-        }
-        
-        resetTrainingUI();
-    }
-    
-    async function loadAudioFileForTraining(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    if (!audioContext) {
-                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    }
-                    const buffer = await audioContext.decodeAudioData(e.target.result);
-                    resolve(buffer);
-                } catch (error) {
-                    reject(error);
-                }
-            };
-            reader.onerror = () => reject(new Error('Failed to read file'));
-            reader.readAsArrayBuffer(file);
-        });
-    }
-    
-    async function createVocalRemovalModel() {
-        // Create a simple neural network for vocal removal
-        const model = tf.sequential({
-            layers: [
-                tf.layers.dense({
-                    inputShape: [1024], // FFT size
-                    units: 512,
-                    activation: 'relu'
-                }),
-                tf.layers.dropout({ rate: 0.3 }),
-                tf.layers.dense({
-                    units: 256,
-                    activation: 'relu'
-                }),
-                tf.layers.dropout({ rate: 0.3 }),
-                tf.layers.dense({
-                    units: 128,
-                    activation: 'relu'
-                }),
-                tf.layers.dense({
-                    units: 1024, // Output FFT size
-                    activation: 'sigmoid'
-                })
-            ]
-        });
-        
-        model.compile({
-            optimizer: tf.train.adam(0.001),
-            loss: 'meanSquaredError',
-            metrics: ['mae']
-        });
-        
-        return model;
-    }
-    
-    async function trainModel(model, trainingPairs) {
-        const epochs = parseInt(document.getElementById('training-epochs').value);
-        totalEpochsSpan.textContent = epochs;
-        
-        // Prepare training data
-        const { inputs, outputs } = prepareTrainingData(trainingPairs);
-        
-        // Training callbacks
-        const callbacks = {
-            onEpochEnd: (epoch, logs) => {
-                if (!isTraining) return;
-                
-                const progress = ((epoch + 1) / epochs) * 100;
-                trainingProgressBar.style.width = `${progress}%`;
-                currentEpochSpan.textContent = epoch + 1;
-                currentLossSpan.textContent = logs.loss.toFixed(6);
-                
-                // Estimate remaining time
-                const elapsed = Date.now() - trainingStartTime;
-                const avgTimePerEpoch = elapsed / (epoch + 1);
-                const remainingEpochs = epochs - (epoch + 1);
-                const estimatedRemaining = avgTimePerEpoch * remainingEpochs;
-                
-                timeRemainingSpan.textContent = formatTime(estimatedRemaining);
-                
-                addTrainingLog(`Epoch ${epoch + 1}/${epochs} - Loss: ${logs.loss.toFixed(6)}`, 'info');
-            }
-        };
-        
-        try {
-            await model.fit(inputs, outputs, {
-                epochs: epochs,
-                batchSize: 32,
-                validationSplit: 0.2,
-                callbacks: callbacks
-            });
-        } catch (error) {
-            if (isTraining) {
-                throw error;
-            }
+    // Theme Toggle Functionality
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const body = document.body;
+
+    // Load saved theme from localStorage
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        body.classList.add(savedTheme);
+        if (savedTheme === 'dark-theme') {
+            themeToggleBtn.querySelector('i').classList.remove('fa-moon');
+            themeToggleBtn.querySelector('i').classList.add('fa-sun');
         }
     }
-    
-    function prepareTrainingData(trainingPairs) {
-        const inputs = [];
-        const outputs = [];
-        
-        trainingPairs.forEach(pair => {
-            // Convert audio buffers to spectrograms
-            const originalSpectrum = audioBufferToSpectrum(pair.original);
-            const instrumentalSpectrum = audioBufferToSpectrum(pair.instrumental);
-            
-            // Create training samples
-            for (let i = 0; i < originalSpectrum.length - 1024; i += 512) {
-                const input = originalSpectrum.slice(i, i + 1024);
-                const output = instrumentalSpectrum.slice(i, i + 1024);
-                
-                inputs.push(input);
-                outputs.push(output);
-            }
-        });
-        
-        return {
-            inputs: tf.tensor2d(inputs),
-            outputs: tf.tensor2d(outputs)
-        };
-    }
-    
-    function audioBufferToSpectrum(buffer) {
-        // Simple FFT-like conversion (simplified for demo)
-        const channelData = buffer.getChannelData(0);
-        const spectrum = [];
-        
-        for (let i = 0; i < channelData.length; i += 1024) {
-            const chunk = channelData.slice(i, i + 1024);
-            // Normalize and add to spectrum
-            const normalized = chunk.map(sample => (sample + 1) / 2);
-            spectrum.push(...normalized);
-        }
-        
-        return spectrum;
-    }
-    
-    function resetTrainingUI() {
-        isTraining = false;
-        startTrainingBtn.disabled = false;
-        cancelTrainingBtn.classList.add('hidden');
-        trainingProgressBar.style.width = '0%';
-        currentEpochSpan.textContent = '0';
-        currentLossSpan.textContent = '-';
-        timeRemainingSpan.textContent = '-';
-    }
-    
-    function addTrainingLog(message, type = 'info') {
-        const logEntry = document.createElement('div');
-        logEntry.className = `log-entry log-${type}`;
-        logEntry.innerHTML = `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> ${message}`;
-        trainingLogContent.appendChild(logEntry);
-        trainingLogContent.scrollTop = trainingLogContent.scrollHeight;
-    }
-    
-    function formatTime(milliseconds) {
-        const seconds = Math.floor(milliseconds / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        
-        if (hours > 0) {
-            return `${hours}h ${minutes % 60}m`;
-        } else if (minutes > 0) {
-            return `${minutes}m ${seconds % 60}s`;
+
+    themeToggleBtn.addEventListener('click', () => {
+        body.classList.toggle('dark-theme');
+        if (body.classList.contains('dark-theme')) {
+            localStorage.setItem('theme', 'dark-theme');
+            themeToggleBtn.querySelector('i').classList.remove('fa-moon');
+            themeToggleBtn.querySelector('i').classList.add('fa-sun');
         } else {
-            return `${seconds}s`;
+            localStorage.setItem('theme', 'light-theme');
+            themeToggleBtn.querySelector('i').classList.remove('fa-sun');
+            themeToggleBtn.querySelector('i').classList.add('fa-moon');
         }
-    }
-    
-    // Load saved model on page load
-    if (localStorage.getItem('hasTrainedModel') === 'true') {
-        const trainedOption = modelSelect.querySelector('option[value="trained"]');
-        trainedOption.disabled = false;
-        trainedOption.textContent = localStorage.getItem('modelName') || 'Custom Trained Model';
-    }
-    
-    // Update vocal removal to use selected model
-    const originalRemoveVocals = removeVocals;
-    window.removeVocals = function() {
-        const selectedModel = modelSelect.value;
-        
-        if (selectedModel === 'trained' && trainedModel) {
-            removeVocalsWithAI();
-        } else {
-            originalRemoveVocals();
-        }
-    };
-    
-    async function removeVocalsWithAI() {
-        if (!audioBuffer || !trainedModel) {
-            statusMessage.textContent = 'Please upload an audio file and ensure model is loaded.';
-            return;
-        }
-        
-        // Show progress
-        progressContainer.classList.remove('hidden');
-        progressBar.style.width = '0%';
-        statusMessage.textContent = 'Processing with AI model... Please wait.';
-        
-        // Disable buttons during processing
-        removeVocalsButton.disabled = true;
-        
-        try {
-            // Convert audio to spectrum
-            const spectrum = audioBufferToSpectrum(audioBuffer);
-            
-            // Process in chunks
-            const processedSpectrum = [];
-            const chunkSize = 1024;
-            
-            for (let i = 0; i < spectrum.length - chunkSize; i += chunkSize) {
-                const chunk = spectrum.slice(i, i + chunkSize);
-                const input = tf.tensor2d([chunk]);
-                const prediction = trainedModel.predict(input);
-                const output = await prediction.data();
-                
-                processedSpectrum.push(...output);
-                
-                // Update progress
-                const progress = (i / (spectrum.length - chunkSize)) * 100;
-                progressBar.style.width = `${progress}%`;
-                
-                // Clean up tensors
-                input.dispose();
-                prediction.dispose();
-            }
-            
-            // Convert back to audio buffer
-            processedBuffer = spectrumToAudioBuffer(processedSpectrum, audioBuffer.sampleRate);
-            
-            finishProcessing();
-        } catch (error) {
-            console.error('AI processing error:', error);
-            statusMessage.textContent = 'Error processing with AI model. Using default algorithm.';
-            originalRemoveVocals();
-        }
-    }
-    
-    function spectrumToAudioBuffer(spectrum, sampleRate) {
-        // Convert spectrum back to audio buffer (simplified)
-        const length = spectrum.length;
-        const buffer = audioContext.createBuffer(2, length, sampleRate);
-        
-        const leftChannel = buffer.getChannelData(0);
-        const rightChannel = buffer.getChannelData(1);
-        
-        for (let i = 0; i < length; i++) {
-            const sample = (spectrum[i] * 2) - 1; // Denormalize
-            leftChannel[i] = sample;
-            rightChannel[i] = sample;
-        }
-        
-        return buffer;
-    }
+    });
 });
