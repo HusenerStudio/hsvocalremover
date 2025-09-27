@@ -432,36 +432,86 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Initialize AudioContext if not already done
             if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (error) {
+                    console.error('Error creating AudioContext:', error);
+                    statusMessage.textContent = 'Your browser does not support audio processing.';
+                    return;
+                }
             }
             
-            // Decode the audio file
-            audioContext.decodeAudioData(arrayBuffer)
-                .then(buffer => {
-                    audioBuffer = buffer;
-                    
-                    // Create a blob URL for the audio player
-                    const blob = new Blob([arrayBuffer], { type: file.type });
-                    const url = URL.createObjectURL(blob);
-                    
-                    // Set the audio player source
-                    audioPlayer.src = url;
-                    
-                    // Show audio controls
-                    audioControls.classList.remove('hidden');
-                    
-                    // Reset UI elements
-                    downloadButton.disabled = true;
-                    progressContainer.classList.add('hidden');
-                    statusMessage.textContent = '';
-                })
-                .catch(error => {
-                    console.error('Error decoding audio data', error);
-                    statusMessage.textContent = 'Error loading audio file. Please try another file.';
+            // Resume AudioContext if it's suspended (required by some browsers)
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    decodeAudioData(arrayBuffer, file);
+                }).catch(error => {
+                    console.error('Error resuming AudioContext:', error);
+                    statusMessage.textContent = 'Error initializing audio processing.';
                 });
+            } else {
+                decodeAudioData(arrayBuffer, file);
+            }
+        };
+        
+        reader.onerror = function() {
+            statusMessage.textContent = 'Error reading the audio file.';
         };
         
         reader.readAsArrayBuffer(file);
+    }
+    
+    function decodeAudioData(arrayBuffer, file) {
+        // Decode the audio file
+        audioContext.decodeAudioData(arrayBuffer)
+            .then(buffer => {
+                audioBuffer = buffer;
+                
+                // Validate audio buffer
+                if (!buffer || buffer.length === 0) {
+                    throw new Error('Invalid audio buffer');
+                }
+                
+                if (buffer.duration < 0.1) {
+                    throw new Error('Audio file is too short');
+                }
+                
+                if (buffer.duration > 600) { // 10 minutes limit
+                    statusMessage.textContent = 'Warning: Large audio file may take longer to process.';
+                }
+                
+                // Create a blob URL for the audio player
+                const blob = new Blob([arrayBuffer], { type: file.type });
+                const url = URL.createObjectURL(blob);
+                
+                // Set the audio player source
+                audioPlayer.src = url;
+                
+                // Show audio controls
+                audioControls.classList.remove('hidden');
+                
+                // Reset UI elements
+                downloadButton.disabled = true;
+                progressContainer.classList.add('hidden');
+                statusMessage.textContent = `Audio loaded successfully. Channels: ${buffer.numberOfChannels}, Duration: ${Math.round(buffer.duration)}s`;
+            })
+            .catch(error => {
+                console.error('Error decoding audio data:', error);
+                let errorMessage = 'Error loading audio file. ';
+                
+                if (error.name === 'EncodingError') {
+                    errorMessage += 'The file format is not supported or the file is corrupted.';
+                } else if (error.message.includes('Invalid audio buffer')) {
+                    errorMessage += 'The audio file appears to be empty or invalid.';
+                } else if (error.message.includes('too short')) {
+                    errorMessage += 'The audio file is too short to process.';
+                } else {
+                    errorMessage += 'Please try a different audio file format (MP3, WAV, etc.).';
+                }
+                
+                statusMessage.textContent = errorMessage;
+                audioControls.classList.add('hidden');
+            });
     }
     
     // Process audio to remove vocals
@@ -473,10 +523,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        // Check if audio has sufficient channels for vocal removal
+        if (audioBuffer.numberOfChannels === 1) {
+            statusMessage.textContent = 'Processing mono audio with vocal reduction filter...';
+        } else {
+            statusMessage.textContent = 'Processing stereo audio with vocal removal...';
+        }
+        
         // Show progress
         progressContainer.classList.remove('hidden');
         progressBar.style.width = '0%';
-        statusMessage.textContent = 'Processing... Please wait.';
         
         // Disable buttons during processing
         removeVocalsButton.disabled = true;
@@ -495,32 +551,80 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Process the audio (vocal removal algorithm)
         setTimeout(() => {
-            processedBuffer = removeVocalsFromBuffer(audioBuffer);
+            try {
+                processedBuffer = removeVocalsFromBuffer(audioBuffer);
+                if (!processedBuffer) {
+                    throw new Error('Failed to process audio buffer');
+                }
+            } catch (error) {
+                console.error('Error processing audio:', error);
+                statusMessage.textContent = 'Error processing audio. Please try a different file.';
+                removeVocalsButton.disabled = false;
+                progressContainer.classList.add('hidden');
+                clearInterval(progressInterval);
+            }
         }, 500);
     }
     
     function removeVocalsFromBuffer(buffer) {
-        // Get the audio data
-        const leftChannel = buffer.getChannelData(0);
-        const rightChannel = buffer.getChannelData(1);
+        const numberOfChannels = buffer.numberOfChannels;
+        const length = buffer.length;
+        const sampleRate = buffer.sampleRate;
         
         // Create a new buffer for the processed audio
         const processedBuffer = audioContext.createBuffer(
-            buffer.numberOfChannels,
-            buffer.length,
-            buffer.sampleRate
+            numberOfChannels,
+            length,
+            sampleRate
         );
         
-        // Get the processed buffer channels
-        const processedLeftChannel = processedBuffer.getChannelData(0);
-        const processedRightChannel = processedBuffer.getChannelData(1);
-        
-        // Apply center channel cancellation (basic vocal removal technique)
-        // This works because vocals are usually centered in the stereo field
-        for (let i = 0; i < buffer.length; i++) {
-            // Invert one channel and mix with the other to cancel out center content
-            processedLeftChannel[i] = leftChannel[i] - rightChannel[i];
-            processedRightChannel[i] = rightChannel[i] - leftChannel[i];
+        if (numberOfChannels === 1) {
+            // Mono audio - apply high-pass filter to reduce vocals
+            const sourceChannel = buffer.getChannelData(0);
+            const processedChannel = processedBuffer.getChannelData(0);
+            
+            // Apply a simple high-pass filter to reduce vocal frequencies
+            // This preserves more audio than channel subtraction
+            let prevSample = 0;
+            const alpha = 0.95; // High-pass filter coefficient
+            
+            for (let i = 0; i < length; i++) {
+                const currentSample = sourceChannel[i];
+                processedChannel[i] = alpha * (processedChannel[i - 1] || 0) + alpha * (currentSample - prevSample);
+                prevSample = currentSample;
+            }
+        } else if (numberOfChannels >= 2) {
+            // Stereo audio - apply improved center channel cancellation
+            const leftChannel = buffer.getChannelData(0);
+            const rightChannel = buffer.getChannelData(1);
+            
+            const processedLeftChannel = processedBuffer.getChannelData(0);
+            const processedRightChannel = processedBuffer.getChannelData(1);
+            
+            // Improved vocal removal with better preservation of instruments
+            for (let i = 0; i < length; i++) {
+                const left = leftChannel[i];
+                const right = rightChannel[i];
+                
+                // Calculate the difference (removes center content)
+                const difference = left - right;
+                
+                // Apply a softer vocal removal that preserves more audio
+                // Mix the difference with some of the original signal
+                const mixRatio = 0.7; // How much vocal removal vs original
+                
+                processedLeftChannel[i] = difference * mixRatio + left * (1 - mixRatio) * 0.5;
+                processedRightChannel[i] = difference * mixRatio + right * (1 - mixRatio) * 0.5;
+            }
+            
+            // Copy additional channels if they exist
+            for (let channel = 2; channel < numberOfChannels; channel++) {
+                const sourceChannel = buffer.getChannelData(channel);
+                const processedChannel = processedBuffer.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    processedChannel[i] = sourceChannel[i];
+                }
+            }
         }
         
         return processedBuffer;
